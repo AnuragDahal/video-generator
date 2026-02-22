@@ -7,15 +7,14 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
 
     # AI Service Keys
-    GEMINI_API_KEY: Optional[str] = None
-    GROQ_API_KEY: Optional[str] = None
-    GROK_API_KEY: Optional[str] = None
+    GEMINI_API_KEY: str
+    GEMINI_MODEL: str
     
     # Audio Services
-    ELEVENLABS_API_KEY: Optional[str] = None
+    ELEVENLABS_API_KEY: str
     
     # Visual Services
-    PEXELS_API_KEY: Optional[str] = None
+    PEXELS_API_KEY: str
     
     # Storage
     OUTPUT_DIR: str = "outputs"
