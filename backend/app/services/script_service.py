@@ -23,7 +23,7 @@ class ScriptService:
             response = self.client.models.generate_content(
                 model=settings.GEMINI_MODEL,
                 config=types.GenerateContentConfig(
-                    system_instruction="You are a professional video script writer. Generate a concise and engaging script based on the user's prompt.",
+                    system_instruction="You are a professional video script writer. Generate a concise and engaging script based on the user's prompt.You will return the response in plain text not in a markdown syntax.",
                     thinking_config=types.ThinkingConfig(thinking_level='low')
                 ),
                 contents=prompt
