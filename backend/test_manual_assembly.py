@@ -12,7 +12,7 @@ async def test_manual_video_assembly():
     print("🎬 Starting Manual Video Assembly...")
     
     # Paths provided by the user
-    audio_path = r"c:\Users\freef\OneDrive\Desktop\CodePlaygrond\personal\video-generator\backend\outputs\audio\bermuda_placeholder_test.mp3"
+    audio_path = r"c:\Users\freef\OneDrive\Desktop\CodePlaygrond\personal\video-generator\backend\outputs\audio\pyramids_mystery_audio.mp3"
     visuals_dir = r"c:\Users\freef\OneDrive\Desktop\CodePlaygrond\personal\video-generator\backend\outputs\visuals"
     
     # Collect all image files from the visuals directory
@@ -34,7 +34,7 @@ async def test_manual_video_assembly():
     
     try:
         print("\n--- Assembling Video using existing assets ---")
-        output_filename = "bermuda_final_video.mp4"
+        output_filename = "pyramids_mystery_final_video_2.mp4"
         final_video_path = await engine_service.assemble_video(audio_path, visual_paths, output_filename)
         
         print("\n✨ ASSEMBLY SUCCESS ✨")

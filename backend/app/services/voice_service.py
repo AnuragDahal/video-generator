@@ -13,11 +13,18 @@ class VoiceService:
         self.output_dir = Path(settings.OUTPUT_DIR) / "audio"
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-    async def generate_voiceover(self, script: str, output_filename: str = "voiceover.mp3") -> str:
+    async def generate_voiceover(self, script: str | dict, output_filename: str = "voiceover.mp3") -> str:
         """
         Generates audio file from script.
-        Tries ElevenLabs first, falls back to Edge TTS if ElevenLabs fails or is blocked.
+        If script is a dict, extracts the 'narration' field.
+        Tries ElevenLabs first, falls back to Edge TTS.
         """
+        if isinstance(script, dict):
+            script = script.get("narration", "")
+
+        if not script:
+            return "Error: No narration text provided."
+
         output_path = self.output_dir / output_filename
 
         # 1. Try ElevenLabs if API key is present
