@@ -12,7 +12,8 @@ try:
         model="gemini-3-flash-preview",
         contents="Provide me a youtube video script for a video topic on 'The mystery of the Bermuda Triangle'.",
         config=types.GenerateContentConfig(
-            system_instruction="You are a professional video script writer. Generate a concise and engaging script based on the user's prompt."),
+            system_instruction="You are a professional video script writer. Generate a concise and engaging script based on the user's prompt.You will return the response in plain text not in a markdown syntax."
+        )
     )
 
     print("SUCCESS:")

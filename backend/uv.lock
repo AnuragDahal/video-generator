@@ -139,6 +139,7 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "edge-tts" },
+    { name = "elevenlabs" },
     { name = "fastapi", extra = ["standard"] },
     { name = "google-genai" },
     { name = "google-generativeai" },
@@ -152,6 +153,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "edge-tts", specifier = ">=6.1.12" },
+    { name = "elevenlabs", specifier = ">=2.36.1" },
     { name = "fastapi", extras = ["standard"], specifier = ">=0.129.0" },
     { name = "google-genai", specifier = ">=1.64.0" },
     { name = "google-generativeai", specifier = ">=0.8.0" },
@@ -371,6 +373,23 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/16/d2/1ce38f6e4fe7275207f4033b0971db489a0b594340ae6bac2320127e71ee/edge_tts-7.2.7.tar.gz", hash = "sha256:0127fba57a742bc48ff0a2a3b24b8324f7859260185274c335b4e54735aff325", size = 27508 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/bf/89/92ac6b154ab87d236c15e5e0c73cb99be58efb1ea3eb9318c266bf9a36bf/edge_tts-7.2.7-py3-none-any.whl", hash = "sha256:ac11d9e834347e5ee62cbe72e8a56ffd65d3c4e795be14b1e593b72cf6480dd9", size = 30556 },
+]
+
+[[package]]
+name = "elevenlabs"
+version = "2.36.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "httpx" },
+    { name = "pydantic" },
+    { name = "pydantic-core" },
+    { name = "requests" },
+    { name = "typing-extensions" },
+    { name = "websockets" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a5/c5/7a5d30851f1853d9c38a522885336764e9c8f5c6b967d942f973fad30d1d/elevenlabs-2.36.1.tar.gz", hash = "sha256:9b278f861679824ee03ee06da049d6fd9ca3886950e77d8d49dab2530ed837d3", size = 495369 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ec/5f/33fb4912dd880d67e167f636736e213d61736866c808949b1452cb5a56f6/elevenlabs-2.36.1-py3-none-any.whl", hash = "sha256:c60c03b463565704038364703b0d54746fd0b67dea0341c2d53da445c32c75cc", size = 1332127 },
 ]
 
 [[package]]
