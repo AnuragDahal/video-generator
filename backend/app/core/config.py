@@ -16,9 +16,13 @@ class Settings(BaseSettings):
     # Visual Services
     PEXELS_API_KEY: str
     
-    # Storage
+    # Storage & Cloud
     OUTPUT_DIR: str = "outputs"
+    SUPABASE_URL: Optional[str] = None
+    SUPABASE_ANON_PUBLIC_KEY: Optional[str] = None
+    SUPABASE_BUCKET: str = "videos"
 
-    model_config = SettingsConfigDict(env_file=".env", case_sensitive=True)
+    model_config = SettingsConfigDict(env_file=".env", case_sensitive=True, extra="ignore")
 
 settings = Settings()
+

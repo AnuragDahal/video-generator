@@ -8,7 +8,9 @@ class VideoCreate(BaseModel):
 
 class VideoResponse(BaseModel):
     id: str
+    task_id: str
     status: str
+    title: Optional[str] = None
     video_url: Optional[str] = None
-    script: Optional[str] = None
+    script: Optional[dict] = None
     error: Optional[str] = None
