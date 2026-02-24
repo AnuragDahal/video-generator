@@ -3,6 +3,8 @@ from google.genai import types
 import json
 import re
 from app.core.config import settings
+from app.utils.prompts import script_prompt
+
 
 class ScriptService:
     def __init__(self):
@@ -20,23 +22,7 @@ class ScriptService:
             else:
                 return {"error": "GEMINI_API_KEY not configured."}
 
-        system_instruction = (
-            "You are a professional YouTube script writer and director. "
-            "Your goal is to create a highly engaging video script including narration and visual cues. "
-            "You MUST return the response as a JSON object with the following structure:\n"
-            "{\n"
-            "  \"title\": \"Direct and catchy title\",\n"
-            "  \"narration\": \"The full, continuous narration text without any scene markers or instructions. This will be read by an AI voice.\",\n"
-            "  \"scenes\": [\n"
-            "    {\n"
-            "      \"narration_part\": \"The specific part of the narration for this scene\",\n"
-            "      \"visual_keywords\": [\"keyword1\", \"keyword2\", \"keyword3\"]\n"
-            "    }\n"
-            "  ]\n"
-            "}\n"
-            "Ensure you provide at least 5-8 scenes to keep the video visually dynamic. "
-            "Keywords should be descriptive for high-quality stock image searches (e.g., 'crashing ocean waves', 'vintage 1940s airplane')."
-        )
+        system_instruction = script_prompt
 
         try:
             response = self.client.models.generate_content(
@@ -48,13 +34,14 @@ class ScriptService:
                 ),
                 contents=prompt
             )
-            
+
             # Extract JSON from response
             script_data = json.loads(response.text)
             return script_data
-        
+
         except Exception as e:
             print(f"Error in script generation: {e}")
             return {"error": str(e)}
+
 
 script_service = ScriptService()

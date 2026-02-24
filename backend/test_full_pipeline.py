@@ -1,3 +1,8 @@
+from app.core.config import settings
+from app.services.engine_service import engine_service
+from app.services.visual_service import visual_service
+from app.services.voice_service import voice_service
+from app.services.script_service import script_service
 import asyncio
 import os
 import json
@@ -7,42 +12,41 @@ from dotenv import load_dotenv
 # Load env before imports
 load_dotenv()
 
-from app.services.script_service import script_service
-from app.services.voice_service import voice_service
-from app.services.visual_service import visual_service
-from app.services.engine_service import engine_service
 
 async def test_automated_video_pipeline():
     print("🚀 Starting Automated Smart-Sync Video Pipeline...")
-    
-    prompt = "A brief history of Ancient Rome and the Colosseum"
-    video_id = "rome_history"
-    
+    output_path = Path(settings.OUTPUT_DIR) / "scripts"
+    output_path.mkdir(parents=True, exist_ok=True)
+    prompt = input('Enter your prompt: ')
+    video_id = input('Enter your video id: ')
+
     try:
         # 1. Script
         print("\n--- Step 1: Generating Script ---")
         script_data = await script_service.generate_script(prompt)
+        with open(output_path / f'{video_id}_script.json', 'w') as f:
+            json.dump(script_data, f, indent=2)
         print(f"✅ Generated script with {len(script_data['scenes'])} scenes.")
-        
+
         # 2. Voice
         print("\n--- Step 2: Generating Voiceover ---")
         audio_filename = f"{video_id}_audio.mp3"
         audio_path = await voice_service.generate_voiceover(script_data, audio_filename)
         print(f"✅ Audio generated: {audio_path}")
-        
+
         # 3. Visuals (Scene-linked)
         print("\n--- Step 3: Fetching Scene-Linked Visuals ---")
         scenes_with_visuals = await visual_service.fetch_visuals_for_scenes(script_data["scenes"])
         print("✅ Visuals fetched and linked to scenes.")
-        
+
         # 4. Smart Assembly
         print("\n--- Step 4: Assembling with Smart Timing ---")
         output_filename = f"{video_id}_smart_sync.mp4"
         final_video_path = await engine_service.assemble_video(audio_path, scenes_with_visuals, output_filename)
-        
+
         print("\n✨ PIPELINE SUCCESS ✨")
         print(f"Final Sync'd Video: {final_video_path}")
-        
+
     except Exception as e:
         print(f"\n❌ PIPELINE FAILED: {e}")
 

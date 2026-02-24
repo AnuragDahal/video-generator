@@ -217,3 +217,5 @@ __marimo__/
 # Video Generator storage
 backend/outputs/
 backend/temp/
+
+plan.md
