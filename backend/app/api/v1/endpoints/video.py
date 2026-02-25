@@ -41,18 +41,21 @@ async def process_video_task(task_id: str, prompt: str):
             tasks_db[task_id].error = audio_path
             return
         
-        # 3. Visuals
-        scenes_with_visuals = await visual_service.fetch_visuals_for_scenes(script_data["scenes"])
+        # 3. Visuals (Video Clips)
+        scenes_with_visuals = await visual_service.fetch_video_clips_for_scenes(script_data["scenes"])
         
         # 4. Smart Assembly
         output_file = f"{task_id}_final.mp4"
-        local_video_path = await engine_service.assemble_video(audio_path, scenes_with_visuals, output_file)
+        local_video_path, used_visual_paths = await engine_service.assemble_video(audio_path, scenes_with_visuals, output_file)
         
-        # 5. Upload to Cloud
+        # 5. Cleanup unused visuals
+        await visual_service.cleanup_unused_visuals(used_visual_paths)
+        
+        # 6. Upload to Cloud
         print(f"Uploading {local_video_path} to cloud...")
         cloud_url = await storage_service.upload_video(local_video_path)
         
-        # 6. Update Final Status
+        # 7. Update Final Status
         tasks_db[task_id].video_url = cloud_url
         tasks_db[task_id].status = "completed"
         print(f"Task {task_id} completed successfully.")
