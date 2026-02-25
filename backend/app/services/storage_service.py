@@ -13,12 +13,12 @@ class StorageService:
         if self.url and self.key:
             self.client = create_client(self.url, self.key)
 
-    async def upload_video(self, file_path: str) -> str:
+    async def upload_file(self, file_path: str, content_type: str = "video/mp4") -> str:
         """
-        Uploads a video to Supabase storage and returns the public URL.
+        Uploads a file to Supabase storage and returns the public URL.
         """
         if not self.client:
-            print("Supabase storage not configured. Using local path as URL.")
+            print(f"Supabase storage not configured. Using local path as URL: {file_path}")
             return file_path
 
         p = Path(file_path)
@@ -26,12 +26,10 @@ class StorageService:
         
         try:
             with open(file_path, 'rb') as f:
-                # Upload the file
-                # Storage logic is typically sync in the current supabase-py SDK
                 self.client.storage.from_(self.bucket).upload(
                     path=file_name,
                     file=f.read(),
-                    file_options={"content-type": "video/mp4", "x-upsert": "true"}
+                    file_options={"content-type": content_type, "x-upsert": "true"}
                 )
             
             # Get the public URL
@@ -40,5 +38,11 @@ class StorageService:
         except Exception as e:
             print(f"Error uploading to Supabase: {e}")
             return file_path
+
+    async def upload_video(self, file_path: str) -> str:
+        return await self.upload_file(file_path, "video/mp4")
+
+    async def upload_thumbnail(self, file_path: str) -> str:
+        return await self.upload_file(file_path, "image/jpeg")
 
 storage_service = StorageService()

@@ -93,6 +93,51 @@ class VisualService:
 
         return clips_found
 
+    async def fetch_thumbnail_image(self, keywords: List[str]) -> Optional[str]:
+        """
+        Searches for a high-quality image to use as a thumbnail based on keywords.
+        Returns the local path to the downloaded image.
+        """
+        headers = {"Authorization": self.api_key}
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            for keyword in keywords:
+                try:
+                    print(f"🖼️  Searching thumbnail image for: '{keyword}'")
+                    response = await client.get(
+                        f"{self.base_url}/search",
+                        headers=headers,
+                        params={"query": keyword, "per_page": 5, "orientation": "landscape"}
+                    )
+                    response.raise_for_status()
+                    photos = response.json().get("photos", [])
+
+                    if not photos:
+                        continue
+
+                    # Pick the first photo
+                    photo = photos[0]
+                    photo_id = photo["id"]
+                    # Use the 'large' or 'original' size
+                    image_url = photo.get("src", {}).get("large") or photo.get("src", {}).get("original")
+                    
+                    if not image_url:
+                        continue
+
+                    local_path = self._build_local_path(photo_id, ".jpg")
+                    if local_path.exists():
+                        return str(local_path)
+
+                    print(f"  ⬇️  Downloading thumbnail image...")
+                    img_response = await client.get(image_url)
+                    img_response.raise_for_status()
+                    local_path.write_bytes(img_response.content)
+                    return str(local_path)
+
+                except Exception as e:
+                    print(f"  ❌ Error fetching thumbnail for '{keyword}': {e}")
+        
+        return None
+
     # -------------------------------------------------------------------------
     # Helpers
     # -------------------------------------------------------------------------

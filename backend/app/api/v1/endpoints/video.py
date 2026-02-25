@@ -48,15 +48,41 @@ async def process_video_task(task_id: str, prompt: str):
         output_file = f"{task_id}_final.mp4"
         local_video_path, used_visual_paths = await engine_service.assemble_video(audio_path, scenes_with_visuals, output_file)
         
-        # 5. Cleanup unused visuals
+        # 5. Extract/Search Thumbnail
+        print("🖼️ Generating thumbnail...")
+        thumbnail_filename = f"{task_id}_thumb.jpg"
+        
+        # Try to search for a relevant image first
+        thumb_keywords = script_data.get("thumbnail_keywords", [])
+        local_thumb_path = None
+        
+        if thumb_keywords:
+            local_thumb_path = await visual_service.fetch_thumbnail_image(thumb_keywords)
+        
+        # Fallback to extracting from video if search fails or no keywords
+        if not local_thumb_path:
+            print("⚠️ No thumbnail image found, falling back to video extraction...")
+            local_thumb_path = await engine_service.extract_thumbnail(local_video_path, thumbnail_filename)
+        
+        # Add local thumb path to used visuals for cleanup safety (optional but good practice)
+        if local_thumb_path:
+            used_visual_paths.append(local_thumb_path)
+
+        # 6. Cleanup unused visuals
         await visual_service.cleanup_unused_visuals(used_visual_paths)
         
-        # 6. Upload to Cloud
+        # 7. Upload to Cloud
         print(f"Uploading {local_video_path} to cloud...")
         cloud_url = await storage_service.upload_video(local_video_path)
         
-        # 7. Update Final Status
+        cloud_thumb_url = None
+        if local_thumb_path:
+            print(f"Uploading {local_thumb_path} to cloud...")
+            cloud_thumb_url = await storage_service.upload_thumbnail(local_thumb_path)
+        
+        # 8. Update Final Status
         tasks_db[task_id].video_url = cloud_url
+        tasks_db[task_id].thumbnail_url = cloud_thumb_url
         tasks_db[task_id].status = "completed"
         print(f"Task {task_id} completed successfully.")
 

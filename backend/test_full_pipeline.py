@@ -44,8 +44,25 @@ async def test_automated_video_pipeline():
         output_filename = f"{video_id}_smart_sync.mp4"
         final_video_path, used_visuals = await engine_service.assemble_video(audio_path, scenes_with_visuals, output_filename)
         
+        # 5. Thumbnail Generation (Search then Fallback)
+        print("\n--- Step 5: Generating Thumbnail ---")
+        thumb_keywords = script_data.get("thumbnail_keywords", [])
+        thumbnail_path = None
+        
+        if thumb_keywords:
+            print(f"Searching for thumbnail image with keywords: {thumb_keywords}")
+            thumbnail_path = await visual_service.fetch_thumbnail_image(thumb_keywords)
+        
+        if not thumbnail_path:
+            print("Falling back to video frame extraction...")
+            thumbnail_filename = f"{video_id}_thumb.jpg"
+            thumbnail_path = await engine_service.extract_thumbnail(final_video_path, thumbnail_filename)
+            
+        print(f"✅ Thumbnail ready: {thumbnail_path}")
+
         print("\n✨ PIPELINE SUCCESS ✨")
         print(f"Final Sync'd Video: {final_video_path}")
+        print(f"Thumbnail: {thumbnail_path}")
 
     except Exception as e:
         print(f"\n❌ PIPELINE FAILED: {e}")

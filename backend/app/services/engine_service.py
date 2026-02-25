@@ -129,4 +129,25 @@ class EngineService:
             print(f"❌ Smart assembly failed: {e}")
             raise e
 
+    async def extract_thumbnail(self, video_path: str, output_filename: str) -> str:
+        """
+        Extracts a frame from the video to use as a thumbnail.
+        Defaults to the first second or middle of the video.
+        """
+        try:
+            print(f"🖼️ Extracting thumbnail for: {video_path}")
+            clip = VideoFileClip(video_path)
+            
+            # Take a frame at 1 second, or middle if video is shorter than 1s
+            t = min(1.0, clip.duration / 2)
+            
+            output_path = self.output_dir / output_filename
+            clip.save_frame(str(output_path), t=t)
+            
+            clip.close()
+            return str(output_path)
+        except Exception as e:
+            print(f"❌ Thumbnail extraction failed: {e}")
+            return None
+
 engine_service = EngineService()

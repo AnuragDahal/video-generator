@@ -5,6 +5,7 @@ script_prompt = (
     "{\n"
     "  \"title\": \"Direct and catchy title\",\n"
     "  \"narration\": \"The full, continuous narration text without any scene markers or instructions. This will be read by an AI voice.\",\n"
+    "  \"thumbnail_keywords\": [\"keyword1\", \"keyword2\", \"keyword3\"],\n"
     "  \"scenes\": [\n"
     "    {\n"
     "      \"narration_part\": \"The specific part of the narration for this scene\",\n"

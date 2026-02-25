@@ -12,5 +12,6 @@ class VideoResponse(BaseModel):
     status: str
     title: Optional[str] = None
     video_url: Optional[str] = None
+    thumbnail_url: Optional[str] = None
     script: Optional[dict] = None
     error: Optional[str] = None
