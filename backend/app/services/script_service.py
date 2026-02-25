@@ -30,7 +30,7 @@ class ScriptService:
                 config=types.GenerateContentConfig(
                     system_instruction=system_instruction,
                     response_mime_type="application/json",
-                    thinking_config=types.ThinkingConfig(thinking_level='low')
+                    # thinking_config=types.ThinkingConfig(thinking_level='low')
                 ),
                 contents=prompt
             )
