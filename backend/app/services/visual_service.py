@@ -11,24 +11,25 @@ class VisualService:
         self.output_path = Path(settings.OUTPUT_DIR) / "visuals"
         self.output_path.mkdir(parents=True, exist_ok=True)
 
+
     # -------------------------------------------------------------------------
     # Scene-level orchestration
     # -------------------------------------------------------------------------
 
-
     async def fetch_video_clips_for_scenes(self, scenes: List[Dict]) -> List[Dict]:
         """
-        Downloads one best-match video clip per scene using keyword fallback logic.
-        Keywords are ordered most-specific → least-specific by the script generator.
-        Attaches local paths to each scene under 'video_paths'.
+        Downloads a pool of best-match video clips per scene using all keywords.
+        Attaches a list of local paths to each scene under 'video_paths'.
         """
         for i, scene in enumerate(scenes):
             keywords = scene.get("visual_keywords", [])
             print(f"🎬  Scene {i+1}: searching video clips with {len(keywords)} keyword(s)...")
-            best_clip = await self._fetch_best_video(keywords)
-            scene["video_paths"] = [best_clip] if best_clip else []
-            if not best_clip:
-                print(f"  ⚠️  Scene {i+1}: no video clip found for any keyword.")
+            clips = await self._fetch_pool_of_videos(keywords)
+            scene["video_paths"] = clips
+            if not clips:
+                print(f"  ⚠️  Scene {i+1}: no video clips found for any keyword.")
+            else:
+                print(f"  ✅ Scene {i+1}: found {len(clips)} clip(s).")
         return scenes
 
     # -------------------------------------------------------------------------
@@ -36,52 +37,61 @@ class VisualService:
     # -------------------------------------------------------------------------
 
 
-    async def _fetch_best_video(self, keywords: List[str]) -> Optional[str]:
+    async def _fetch_pool_of_videos(self, keywords: List[str], max_clips: int = 3) -> List[str]:
         """
-        Tries each keyword in order (most specific → least specific).
-        Returns the local path of the first successfully downloaded video clip, or None.
-        Prefers HD quality (1280x720) over SD.
+        Searches across all keywords to build a variety of clips for a scene.
+        Returns a list of local paths.
         """
         headers = {"Authorization": self.api_key}
+        clips_found = []
+        downloaded_ids = set()
+
         async with httpx.AsyncClient(timeout=60.0) as client:
             for keyword in keywords:
+                if len(clips_found) >= max_clips:
+                    break
+                
                 try:
                     response = await client.get(
                         f"{self.video_base_url}/search",
                         headers=headers,
-                        params={"query": keyword, "per_page": 3, "orientation": "landscape"}
+                        params={"query": keyword, "per_page": 5, "orientation": "landscape"}
                     )
                     response.raise_for_status()
                     videos = response.json().get("videos", [])
 
                     if not videos:
-                        print(f"  ↳ No video clips for '{keyword}', trying next keyword...")
                         continue
 
-                    # Pick the best quality video file (prefer HD)
-                    video = videos[0]
-                    video_id = video["id"]
-                    video_file = self._pick_best_video_file(video.get("video_files", []))
+                    # Find the first video in results that we haven't already picked for this scene
+                    for video in videos:
+                        video_id = video["id"]
+                        if video_id in downloaded_ids:
+                            continue
+                        
+                        video_file = self._pick_best_video_file(video.get("video_files", []))
+                        if not video_file:
+                            continue
 
-                    if not video_file:
-                        print(f"  ↳ No usable video file for '{keyword}', trying next keyword...")
-                        continue
+                        local_path = self._build_local_path(video_id, ".mp4")
+                        downloaded_ids.add(video_id)
 
-                    local_path = self._build_local_path(video_id, ".mp4")
-                    if local_path.exists():
-                        print(f"  ✅ Cache hit: '{keyword}'")
-                        return str(local_path)
+                        if local_path.exists():
+                            print(f"  ✅ Cache hit for clip: '{keyword}'")
+                            clips_found.append(str(local_path))
+                            break # Move to next keyword
 
-                    print(f"  ⬇️  Downloading video clip: '{keyword}'")
-                    vid_response = await client.get(video_file["link"])
-                    vid_response.raise_for_status()
-                    local_path.write_bytes(vid_response.content)
-                    return str(local_path)
+                        print(f"  ⬇️  Downloading clip for: '{keyword}'")
+                        vid_response = await client.get(video_file["link"])
+                        vid_response.raise_for_status()
+                        local_path.write_bytes(vid_response.content)
+                        clips_found.append(str(local_path))
+                        break # Successfully got one from this keyword, move to next
 
                 except Exception as e:
                     print(f"  ❌ Error for keyword '{keyword}': {e}")
 
-        return None
+        return clips_found
 
     # -------------------------------------------------------------------------
     # Helpers
@@ -100,5 +110,24 @@ class VisualService:
         # Prefer HD (height >= 720), then take whatever is available
         hd_files = [f for f in video_files if f.get("height", 0) >= 720]
         return hd_files[0] if hd_files else video_files[0]
+
+    async def cleanup_unused_visuals(self, used_paths: List[str]):
+        """
+        Removes visual files that are not in the used_paths list for the current task.
+        """
+        print(f"🧹 Cleaning up unused visuals (keeping {len(used_paths)} files)...")
+        used_set = {Path(p).resolve() for p in used_paths}
+        
+        count = 0
+        for file in self.output_path.glob("*"):
+            if file.is_file() and file.suffix in [".jpg", ".mp4"]:
+                if file.resolve() not in used_set:
+                    try:
+                        file.unlink()
+                        count += 1
+                    except Exception as e:
+                        print(f"  ❌ Failed to delete {file.name}: {e}")
+        
+        print(f"✨ Cleanup complete. Removed {count} unused files.")
 
 visual_service = VisualService()

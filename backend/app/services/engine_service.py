@@ -1,7 +1,7 @@
 import os
 import multiprocessing
 from pathlib import Path
-from moviepy import ImageClip, AudioFileClip, concatenate_videoclips
+from moviepy import ImageClip, AudioFileClip, VideoFileClip, concatenate_videoclips
 from app.core.config import settings
 
 class EngineService:
@@ -34,41 +34,71 @@ class EngineService:
                 total_chars = len(scenes) # Fallback
             
             clips = []
+            used_visual_paths = set()
             
             # 3. Create clips for each scene
             for i, scene in enumerate(scenes):
                 narration_text = scene.get("narration_part", "")
+                
+                # Check for video clips first, then fallback to images
+                video_paths = scene.get("video_paths", [])
                 image_paths = scene.get("image_paths", [])
                 
                 # Calculate scene duration proportional to text length
-                # CurrentSceneDuration = (SceneChars / TotalChars) * TotalAudioDuration
                 char_ratio = len(narration_text) / total_chars if total_chars > 0 else 1/len(scenes)
                 scene_duration = char_ratio * total_duration
                 
-                if not image_paths:
-                    print(f"Warning: Scene {i+1} has no images. Using placeholder logic or skipping.")
+                if not video_paths and not image_paths:
+                    print(f"Warning: Scene {i+1} has no visual assets. Skipping.")
                     continue
                 
-                # Split scene duration among scene images
-                duration_per_image = scene_duration / len(image_paths)
+                if video_paths:
+                    # Logic for Video Clips
+                    duration_per_clip = scene_duration / len(video_paths)
+                    for vid_path in video_paths:
+                        if not os.path.exists(vid_path):
+                            continue
+                        
+                        clip = VideoFileClip(vid_path)
+                        used_visual_paths.add(vid_path)
+                        
+                        # Trim video to match required duration
+                        # Use a tiny safety margin (0.01) to avoid MoviePy last-frame read errors
+                        if clip.duration > duration_per_clip:
+                            clip = clip.subclipped(0, min(duration_per_clip, clip.duration - 0.01))
+                        else:
+                            # If clip is too short, we fill the duration (MoviePy loops the last frame by default)
+                            clip = clip.with_duration(duration_per_clip)
+                        
+                        # High-speed Resize & Crop for consistency
+                        clip = clip.resized(height=1080)
+                        if clip.w < 1920:
+                            clip = clip.resized(width=1920)
+                        clip = clip.cropped(x_center=clip.w/2, y_center=clip.h/2, width=1920, height=1080)
+                        
+                        clips.append(clip)
                 
-                for img_path in image_paths:
-                    if not os.path.exists(img_path):
-                        continue
-                    
-                    clip = ImageClip(img_path).with_duration(duration_per_image)
-                    
-                    # High-speed Resize & Crop
-                    clip = clip.resized(height=1080)
-                    if clip.w < 1920:
-                        clip = clip.resized(width=1920)
-                    clip = clip.cropped(x_center=clip.w/2, y_center=clip.h/2, width=1920, height=1080)
-                    
-                    clips.append(clip)
+                else:
+                    # Logic for Static Images (Fallback)
+                    duration_per_image = scene_duration / len(image_paths)
+                    for img_path in image_paths:
+                        if not os.path.exists(img_path):
+                            continue
+                        
+                        clip = ImageClip(img_path).with_duration(duration_per_image)
+                        used_visual_paths.add(img_path)
+                        
+                        # High-speed Resize & Crop
+                        clip = clip.resized(height=1080)
+                        if clip.w < 1920:
+                            clip = clip.resized(width=1920)
+                        clip = clip.cropped(x_center=clip.w/2, y_center=clip.h/2, width=1920, height=1080)
+                        
+                        clips.append(clip)
 
             if not clips:
                 audio_clip.close()
-                raise ValueError("No valid clips created. Check if images were downloaded.")
+                raise ValueError("No valid clips created. Check if visuals were downloaded.")
 
             # 4. Concatenate and Finish
             final_video = concatenate_videoclips(clips, method="compose")
@@ -93,7 +123,7 @@ class EngineService:
             final_video.close()
 
             print(f"✅ Smart assembly completed: {output_path}")
-            return str(output_path)
+            return str(output_path), list(used_visual_paths)
 
         except Exception as e:
             print(f"❌ Smart assembly failed: {e}")
