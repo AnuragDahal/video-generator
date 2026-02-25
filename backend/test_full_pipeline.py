@@ -36,14 +36,14 @@ async def test_automated_video_pipeline():
 
         # 3. Visuals (Scene-linked)
         print("\n--- Step 3: Fetching Scene-Linked Visuals ---")
-        scenes_with_visuals = await visual_service.fetch_visuals_for_scenes(script_data["scenes"])
+        scenes_with_visuals = await visual_service.fetch_video_clips_for_scenes(script_data["scenes"])
         print("✅ Visuals fetched and linked to scenes.")
 
         # 4. Smart Assembly
         print("\n--- Step 4: Assembling with Smart Timing ---")
         output_filename = f"{video_id}_smart_sync.mp4"
-        final_video_path = await engine_service.assemble_video(audio_path, scenes_with_visuals, output_filename)
-
+        final_video_path, used_visuals = await engine_service.assemble_video(audio_path, scenes_with_visuals, output_filename)
+        
         print("\n✨ PIPELINE SUCCESS ✨")
         print(f"Final Sync'd Video: {final_video_path}")
 
