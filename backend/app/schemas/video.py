@@ -10,6 +10,8 @@ class VideoResponse(BaseModel):
     id: str
     task_id: str
     status: str
+    progress: int = 0
+    message: Optional[str] = None
     title: Optional[str] = None
     video_url: Optional[str] = None
     thumbnail_url: Optional[str] = None
