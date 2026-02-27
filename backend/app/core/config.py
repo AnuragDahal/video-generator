@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     SUPABASE_ANON_PUBLIC_KEY: Optional[str] = None
     SUPABASE_BUCKET: str = "videos"
 
+    # Redis for Celery and PubSub
+    REDIS_URL: str = "redis://localhost:6379/0"
+
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=True, extra="ignore")
 
 settings = Settings()
