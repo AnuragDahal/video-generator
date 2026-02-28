@@ -1,9 +1,14 @@
 import { useState, useCallback } from "react";
+import api from "./api";
 
 export interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
+  status?: "pending" | "processing" | "completed" | "failed";
+  progress?: number;
+  videoUrl?: string;
+  thumbnailUrl?: string;
   timestamp: Date;
 }
 
@@ -14,27 +19,17 @@ export interface Conversation {
   createdAt: Date;
 }
 
-const MOCK_RESPONSES = [
-  "That's a great question! Let me think about this...\n\nBased on my analysis, here are a few key points:\n\n1. **First consideration** — The approach you're describing is quite common in modern web development.\n2. **Second point** — There are several ways to implement this, each with trade-offs.\n3. **Third insight** — I'd recommend starting with the simplest solution and iterating.\n\nWould you like me to elaborate on any of these points?",
-  "Here's a code example that might help:\n\n```typescript\nconst greeting = (name: string): string => {\n  return `Hello, ${name}! Welcome to the AI chat.`;\n};\n\nconsole.log(greeting('World'));\n```\n\nThis demonstrates a simple TypeScript function with proper typing. Let me know if you'd like me to explain further!",
-  "I'd be happy to help with that! Here's what I suggest:\n\n- Start by defining your **data model** clearly\n- Then build out the **UI components** one at a time\n- Finally, connect everything with **state management**\n\n> The best architecture is one that's easy to change.\n\nShall I walk you through any of these steps in detail?",
-  "Interesting! Let me break this down:\n\n## Overview\nThe concept you're referring to involves several interconnected parts.\n\n## Key Components\n- **Component A**: Handles the core logic\n- **Component B**: Manages the UI layer\n- **Component C**: Orchestrates data flow\n\n## Recommendation\nI'd suggest focusing on Component A first, as it forms the foundation for everything else.\n\nWant me to dive deeper into any specific component?",
-];
-
 export function useChatStore() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [activeConversationId, setActiveConversationId] = useState<
-    string | null
-  >(null);
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
 
-  const activeConversation =
-    conversations.find((c) => c.id === activeConversationId) ?? null;
+  const activeConversation = conversations.find((c) => c.id === activeConversationId) ?? null;
 
   const createConversation = useCallback(() => {
     const id = crypto.randomUUID();
     const conv: Conversation = {
       id,
-      title: "New chat",
+      title: "New video project",
       messages: [],
       createdAt: new Date(),
     };
@@ -50,22 +45,26 @@ export function useChatStore() {
         setActiveConversationId(null);
       }
     },
-    [activeConversationId],
+    [activeConversationId]
   );
+
+  const updateMessage = useCallback((convId: string, messageId: string, updates: Partial<Message>) => {
+    setConversations((prev) =>
+      prev.map((c) => {
+        if (c.id !== convId) return c;
+        return {
+          ...c,
+          messages: c.messages.map((m) => (m.id === messageId ? { ...m, ...updates } : m)),
+        };
+      })
+    );
+  }, []);
 
   const sendMessage = useCallback(
     async (content: string) => {
       let convId = activeConversationId;
       if (!convId) {
-        convId = crypto.randomUUID();
-        const conv: Conversation = {
-          id: convId,
-          title: content.slice(0, 40) + (content.length > 40 ? "..." : ""),
-          messages: [],
-          createdAt: new Date(),
-        };
-        setConversations((prev) => [conv, ...prev]);
-        setActiveConversationId(convId);
+        convId = createConversation();
       }
 
       const userMsg: Message = {
@@ -80,53 +79,75 @@ export function useChatStore() {
           if (c.id !== convId) return c;
           const updated = { ...c, messages: [...c.messages, userMsg] };
           if (c.messages.length === 0) {
-            updated.title =
-              content.slice(0, 40) + (content.length > 40 ? "..." : "");
+            updated.title = content.slice(0, 40) + (content.length > 40 ? "..." : "");
           }
           return updated;
-        }),
+        })
       );
 
-      // Simulate streaming response
-      const responseText =
-        MOCK_RESPONSES[Math.floor(Math.random() * MOCK_RESPONSES.length)];
       const assistantId = crypto.randomUUID();
-
-      // Start with empty assistant message
       const assistantMsg: Message = {
         id: assistantId,
         role: "assistant",
-        content: "",
+        content: "Initializing generation...",
+        status: "pending",
+        progress: 0,
         timestamp: new Date(),
       };
 
       setConversations((prev) =>
         prev.map((c) =>
-          c.id === convId
-            ? { ...c, messages: [...c.messages, assistantMsg] }
-            : c,
-        ),
+          c.id === convId ? { ...c, messages: [...c.messages, assistantMsg] } : c
+        )
       );
 
-      // Stream characters
-      for (let i = 0; i <= responseText.length; i++) {
-        await new Promise((r) => setTimeout(r, 8 + Math.random() * 12));
-        const partial = responseText.slice(0, i);
-        setConversations((prev) =>
-          prev.map((c) =>
-            c.id === convId
-              ? {
-                  ...c,
-                  messages: c.messages.map((m) =>
-                    m.id === assistantId ? { ...m, content: partial } : m,
-                  ),
-                }
-              : c,
-          ),
-        );
+      try {
+        // 1. Request video generation
+        const response = await api.post("/video/generate", { prompt: content });
+        const { task_id } = response.data;
+
+        // 2. Connect to SSE for progress updates
+        const baseURL = process.env.NEXT_PUBLIC_API_URL?.replace("/api/v1", "") || "http://localhost:8000";
+        const eventSource = new EventSource(`${baseURL}/api/v1/video/stream/${task_id}`);
+
+        eventSource.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            
+            updateMessage(convId!, assistantId, {
+              content: data.message || "Generating...",
+              status: data.status,
+              progress: data.progress,
+              videoUrl: data.data?.video_url,
+              thumbnailUrl: data.data?.thumbnail_url,
+            });
+
+            if (data.status === "completed" || data.status === "failed") {
+              eventSource.close();
+            }
+          } catch (err) {
+            console.error("Error parsing SSE data:", err);
+          }
+        };
+
+        eventSource.onerror = (err) => {
+          console.error("SSE Connection Error:", err);
+          updateMessage(convId!, assistantId, {
+            content: "Connection to server lost. Checking status...",
+            status: "failed",
+          });
+          eventSource.close();
+        };
+
+      } catch (error: any) {
+        console.error("Failed to start generation:", error);
+        updateMessage(convId!, assistantId, {
+          content: `Error: ${error.response?.data?.detail || error.message || "Failed to connect to backend"}`,
+          status: "failed",
+        });
       }
     },
-    [activeConversationId],
+    [activeConversationId, createConversation, updateMessage]
   );
 
   return {
