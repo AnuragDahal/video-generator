@@ -65,7 +65,7 @@ async def stream_task_progress(task_id: str, request: Request):
                 if await request.is_disconnected():
                     break
                 
-                message = await pubsub.get_message(ignore_subscribe_message=True, timeout=1.0)
+                message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
                 if message:
                     data = message["data"]
                     yield f"data: {data}\n\n"

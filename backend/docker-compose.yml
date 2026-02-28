@@ -13,6 +13,7 @@ services:
     build: .
     volumes:
       - .:/app
+      - /app/.venv
     ports:
       - "8000:8000"
     env_file:
@@ -22,12 +23,13 @@ services:
     depends_on:
       redis:
         condition: service_healthy
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    command: uv run uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
   worker:
     build: .
     volumes:
       - .:/app
+      - /app/.venv
       - outputs:/app/outputs
     env_file:
       - .env
@@ -39,7 +41,7 @@ services:
     # Start celery worker. We use 'app.worker.celery_app' because the instance is inside worker.py
     # or wherever we defined the celery_app instance.
     # In our case, we defined it in app/core/celery_app.py
-    command: celery -A app.core.celery_app worker --loglevel=info -Q main-queue
+    command: uv run celery -A app.core.celery_app worker --loglevel=info -Q main-queue
 
 volumes:
   outputs:
