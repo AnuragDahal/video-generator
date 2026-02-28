@@ -20,12 +20,28 @@ const page = () => {
     createConversation,
     deleteConversation,
     sendMessage,
+    reconnectSSE,
   } = useChatStore();
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isSending, setIsSending] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
+
+  // Handle hydration and reconnection
+  useEffect(() => {
+    setMounted(true);
+    
+    // Check all conversations for active tasks and reconnect SSE
+    conversations.forEach((conv) => {
+      conv.messages.forEach((msg) => {
+        if ((msg.status === "processing" || msg.status === "pending") && msg.taskId) {
+           reconnectSSE(conv.id, msg.id, msg.taskId);
+        }
+      });
+    });
+  }, []);
 
   // Auto-close sidebar on mobile
   useEffect(() => {
@@ -44,6 +60,8 @@ const page = () => {
   };
 
   const messages = activeConversation?.messages ?? [];
+
+  if (!mounted) return null;
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background">
@@ -101,7 +119,7 @@ const page = () => {
         ) : (
           <ScrollArea className="flex-1">
             <div className="divide-y divide-border/30">
-              {messages.map((msg) => (
+              {messages.map((msg: any) => (
                 <ChatMessage key={msg.id} message={msg} />
               ))}
             </div>

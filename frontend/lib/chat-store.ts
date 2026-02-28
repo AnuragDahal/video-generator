@@ -1,4 +1,5 @@
-import { useState, useCallback } from "react";
+import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
 import api from "./api";
 
 export interface Message {
@@ -7,114 +8,158 @@ export interface Message {
   content: string;
   status?: "pending" | "processing" | "completed" | "failed";
   progress?: number;
+  taskId?: string;
   videoUrl?: string;
   thumbnailUrl?: string;
-  timestamp: Date;
+  timestamp: string; // Store as string for JSON serialization
 }
 
 export interface Conversation {
   id: string;
   title: string;
   messages: Message[];
-  createdAt: Date;
+  createdAt: string;
 }
 
-export function useChatStore() {
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+interface ChatState {
+  conversations: Conversation[];
+  activeConversationId: string | null;
+  activeConversation: Conversation | null;
+  
+  // Actions
+  setActiveConversationId: (id: string | null) => void;
+  createConversation: () => string;
+  deleteConversation: (id: string) => void;
+  sendMessage: (content: string) => Promise<void>;
+  updateMessage: (convId: string, messageId: string, updates: Partial<Message>) => void;
+  reconnectSSE: (convId: string, messageId: string, taskId: string) => void;
+}
 
-  const activeConversation = conversations.find((c) => c.id === activeConversationId) ?? null;
+export const useChatStore = create<ChatState>()(
+  persist(
+    (set, get) => ({
+      conversations: [],
+      activeConversationId: null,
 
-  const createConversation = useCallback(() => {
-    const id = crypto.randomUUID();
-    const conv: Conversation = {
-      id,
-      title: "New video project",
-      messages: [],
-      createdAt: new Date(),
-    };
-    setConversations((prev) => [conv, ...prev]);
-    setActiveConversationId(id);
-    return id;
-  }, []);
+      activeConversation: null,
 
-  const deleteConversation = useCallback(
-    (id: string) => {
-      setConversations((prev) => prev.filter((c) => c.id !== id));
-      if (activeConversationId === id) {
-        setActiveConversationId(null);
-      }
-    },
-    [activeConversationId]
-  );
+      setActiveConversationId: (id) => set((state) => ({ 
+        activeConversationId: id,
+        activeConversation: state.conversations.find((c) => c.id === id) || null
+      })),
 
-  const updateMessage = useCallback((convId: string, messageId: string, updates: Partial<Message>) => {
-    setConversations((prev) =>
-      prev.map((c) => {
-        if (c.id !== convId) return c;
-        return {
-          ...c,
-          messages: c.messages.map((m) => (m.id === messageId ? { ...m, ...updates } : m)),
+      createConversation: () => {
+        const id = crypto.randomUUID();
+        const newConv: Conversation = {
+          id,
+          title: "New video project",
+          messages: [],
+          createdAt: new Date().toISOString(),
         };
-      })
-    );
-  }, []);
+        set((state) => ({
+          conversations: [newConv, ...state.conversations],
+          activeConversationId: id,
+          activeConversation: newConv
+        }));
+        return id;
+      },
 
-  const sendMessage = useCallback(
-    async (content: string) => {
-      let convId = activeConversationId;
-      if (!convId) {
-        convId = createConversation();
-      }
+      deleteConversation: (id) => {
+        set((state) => {
+          const newConvs = state.conversations.filter((c) => c.id !== id);
+          const nextActiveId = state.activeConversationId === id ? null : state.activeConversationId;
+          return {
+            conversations: newConvs,
+            activeConversationId: nextActiveId,
+            activeConversation: newConvs.find(c => c.id === nextActiveId) || null
+          };
+        });
+      },
 
-      const userMsg: Message = {
-        id: crypto.randomUUID(),
-        role: "user",
-        content,
-        timestamp: new Date(),
-      };
+      updateMessage: (convId, messageId, updates) => {
+        set((state) => {
+          const newConversations = state.conversations.map((c) => {
+            if (c.id !== convId) return c;
+            return {
+              ...c,
+              messages: c.messages.map((m) => (m.id === messageId ? { ...m, ...updates } : m)),
+            };
+          });
+          return {
+            conversations: newConversations,
+            activeConversation: newConversations.find(c => c.id === state.activeConversationId) || null
+          };
+        });
+      },
 
-      setConversations((prev) =>
-        prev.map((c) => {
-          if (c.id !== convId) return c;
-          const updated = { ...c, messages: [...c.messages, userMsg] };
-          if (c.messages.length === 0) {
-            updated.title = content.slice(0, 40) + (content.length > 40 ? "..." : "");
-          }
-          return updated;
-        })
-      );
+      sendMessage: async (content) => {
+        const state = get();
+        let convId = state.activeConversationId;
+        
+        if (!convId) {
+          convId = state.createConversation();
+        }
 
-      const assistantId = crypto.randomUUID();
-      const assistantMsg: Message = {
-        id: assistantId,
-        role: "assistant",
-        content: "Initializing generation...",
-        status: "pending",
-        progress: 0,
-        timestamp: new Date(),
-      };
+        const userMsg: Message = {
+          id: crypto.randomUUID(),
+          role: "user",
+          content,
+          timestamp: new Date().toISOString(),
+        };
 
-      setConversations((prev) =>
-        prev.map((c) =>
-          c.id === convId ? { ...c, messages: [...c.messages, assistantMsg] } : c
-        )
-      );
+        // Add user message
+        set((state) => ({
+          conversations: state.conversations.map((c) => {
+            if (c.id !== convId) return c;
+            const updated = { ...c, messages: [...c.messages, userMsg] };
+            if (c.messages.length === 0 || c.title === "New video project") {
+              updated.title = content.slice(0, 40) + (content.length > 40 ? "..." : "");
+            }
+            return updated;
+          }),
+        }));
 
-      try {
-        // 1. Request video generation
-        const response = await api.post("/video/generate", { prompt: content });
-        const { task_id } = response.data;
+        const assistantId = crypto.randomUUID();
+        const assistantMsg: Message = {
+          id: assistantId,
+          role: "assistant",
+          content: "Initializing generation...",
+          status: "pending",
+          progress: 0,
+          timestamp: new Date().toISOString(),
+        };
 
-        // 2. Connect to SSE for progress updates
+        // Add assistant placeholder
+        set((state) => ({
+          conversations: state.conversations.map((c) =>
+            c.id === convId ? { ...c, messages: [...c.messages, assistantMsg] } : c
+          ),
+        }));
+
+        try {
+          const response = await api.post("/video/generate", { prompt: content });
+          const { task_id } = response.data;
+          
+          // Start SSE tracking
+          get().updateMessage(convId!, assistantId, { taskId: task_id });
+          get().reconnectSSE(convId!, assistantId, task_id);
+
+        } catch (error: any) {
+          get().updateMessage(convId!, assistantId, {
+            content: `Error: ${error.response?.data?.detail || error.message || "Failed to connect to backend"}`,
+            status: "failed",
+          });
+        }
+      },
+
+      reconnectSSE: (convId, messageId, taskId) => {
         const baseURL = process.env.NEXT_PUBLIC_API_URL?.replace("/api/v1", "") || "http://localhost:8000";
-        const eventSource = new EventSource(`${baseURL}/api/v1/video/stream/${task_id}`);
+        const eventSource = new EventSource(`${baseURL}/api/v1/video/stream/${taskId}`);
 
         eventSource.onmessage = (event) => {
           try {
             const data = JSON.parse(event.data);
-            
-            updateMessage(convId!, assistantId, {
+            get().updateMessage(convId, messageId, {
               content: data.message || "Generating...",
               status: data.status,
               progress: data.progress,
@@ -132,31 +177,13 @@ export function useChatStore() {
 
         eventSource.onerror = (err) => {
           console.error("SSE Connection Error:", err);
-          updateMessage(convId!, assistantId, {
-            content: "Connection to server lost. Checking status...",
-            status: "failed",
-          });
           eventSource.close();
         };
-
-      } catch (error: any) {
-        console.error("Failed to start generation:", error);
-        updateMessage(convId!, assistantId, {
-          content: `Error: ${error.response?.data?.detail || error.message || "Failed to connect to backend"}`,
-          status: "failed",
-        });
-      }
-    },
-    [activeConversationId, createConversation, updateMessage]
-  );
-
-  return {
-    conversations,
-    activeConversation,
-    activeConversationId,
-    setActiveConversationId,
-    createConversation,
-    deleteConversation,
-    sendMessage,
-  };
-}
+      },
+    }),
+    {
+      name: "video-generator-storage",
+      storage: createJSONStorage(() => localStorage),
+    }
+  )
+);
