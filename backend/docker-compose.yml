@@ -23,7 +23,7 @@ services:
     depends_on:
       redis:
         condition: service_healthy
-    command: uv run uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    command: uv run uvicorn main:app --host 0.0.0.0 --port 8000
 
   worker:
     build: .
@@ -38,10 +38,8 @@ services:
     depends_on:
       redis:
         condition: service_healthy
-    # Start celery worker. We use 'app.worker.celery_app' because the instance is inside worker.py
-    # or wherever we defined the celery_app instance.
-    # In our case, we defined it in app/core/celery_app.py
-    command: uv run celery -A app.core.celery_app worker --loglevel=info -Q main-queue
+    # Force single-task concurrency to save RAM
+    command: uv run celery -A app.core.celery_app worker --loglevel=info -Q main-queue --concurrency=1
 
 volumes:
   outputs:

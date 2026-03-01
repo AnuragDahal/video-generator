@@ -71,10 +71,10 @@ class EngineService:
                             clip = clip.with_duration(duration_per_clip)
                         
                         # High-speed Resize & Crop for consistency
-                        clip = clip.resized(height=1080)
-                        if clip.w < 1920:
-                            clip = clip.resized(width=1920)
-                        clip = clip.cropped(x_center=clip.w/2, y_center=clip.h/2, width=1920, height=1080)
+                        clip = clip.resized(height=720)
+                        if clip.w < 1280:
+                            clip = clip.resized(width=1280)
+                        clip = clip.cropped(x_center=clip.w/2, y_center=clip.h/2, width=1280, height=720)
                         
                         clips.append(clip)
                 
@@ -89,10 +89,10 @@ class EngineService:
                         used_visual_paths.add(img_path)
                         
                         # High-speed Resize & Crop
-                        clip = clip.resized(height=1080)
-                        if clip.w < 1920:
-                            clip = clip.resized(width=1920)
-                        clip = clip.cropped(x_center=clip.w/2, y_center=clip.h/2, width=1920, height=1080)
+                        clip = clip.resized(height=720)
+                        if clip.w < 1280:
+                            clip = clip.resized(width=1280)
+                        clip = clip.cropped(x_center=clip.w/2, y_center=clip.h/2, width=1280, height=720)
                         
                         clips.append(clip)
 
@@ -101,17 +101,22 @@ class EngineService:
                 raise ValueError("No valid clips created. Check if visuals were downloaded.")
 
             # 4. Concatenate and Finish
-            final_video = concatenate_videoclips(clips, method="compose")
+            # 'chain' is MUCH more memory efficient than 'compose'
+            # It works here because we've normalized all clips to 1280x720 above
+            final_video = concatenate_videoclips(clips, method="chain")
             final_video = final_video.with_audio(audio_clip)
             
             output_path = self.output_dir / output_filename
+            
+            # Limit threads to 2 to prevent memory spikes in parallel encoding
+            render_threads = min(2, self.cpu_count)
             
             final_video.write_videofile(
                 str(output_path),
                 fps=24,
                 codec="libx264",
                 audio_codec="aac",
-                threads=self.cpu_count,
+                threads=render_threads,
                 preset="ultrafast",
                 logger=None 
             )
