@@ -117,8 +117,20 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
-    }
+  }
   body {
     @apply bg-background text-foreground;
-    }
+  }
+  button, 
+  a, 
+  [role="button"],
+  input[type="submit"],
+  input[type="button"],
+  label {
+    cursor: pointer;
+  }
+  button:disabled,
+  [disabled] {
+    cursor: not-allowed;
+  }
 }

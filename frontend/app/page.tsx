@@ -84,7 +84,7 @@ const page = () => {
             <EmptyState onSuggestionClick={handleSend} />
           ) : (
             <ScrollArea className="flex-1">
-              <div className="flex flex-col">
+              <div className="flex flex-col max-w-3xl mx-auto w-full">
                 {messages.map((msg: any) => (
                   <ChatMessage key={msg.id} message={msg} />
                 ))}

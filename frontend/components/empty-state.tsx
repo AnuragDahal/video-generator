@@ -41,7 +41,7 @@ export function EmptyState({ onSuggestionClick }: EmptyStateProps) {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15 + i * 0.08 }}
               onClick={() => onSuggestionClick(s)}
-              className="rounded-xl border border-border bg-card px-4 py-3 text-left text-sm text-muted-foreground hover:text-foreground hover:border-primary/30 hover:bg-accent transition-all"
+              className="rounded-xl border border-border bg-card px-4 py-3 text-left text-sm text-muted-foreground hover:text-foreground hover:border-primary/30 hover:bg-accent transition-all cursor-pointer"
             >
               {s}
             </motion.button>
