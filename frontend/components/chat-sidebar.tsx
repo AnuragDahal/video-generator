@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { GalleryVerticalEnd, MessageSquare, Plus, Trash2 } from "lucide-react"
 import * as React from "react"
 
@@ -43,14 +44,17 @@ export function ChatSidebar({
             <SidebarMenuButton
               size="lg"
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+              asChild
             >
-              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <GalleryVerticalEnd className="size-4" />
-              </div>
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-semibold">NovaMind</span>
-                <span className="truncate text-xs text-muted-foreground">Video AI Engine</span>
-              </div>
+              <Link href="/">
+                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                  <GalleryVerticalEnd className="size-4" />
+                </div>
+                <div className="grid flex-1 text-left text-sm leading-tight">
+                  <span className="truncate font-semibold">NovaMind</span>
+                  <span className="truncate text-xs text-muted-foreground">Video AI Engine</span>
+                </div>
+              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
