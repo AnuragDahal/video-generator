@@ -1,15 +1,12 @@
 "use client";
-import { useRef, useEffect, useState } from "react";
-import { Menu } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { ChatSidebar } from "@/components/chat-sidebar";
-import { ChatMessage } from "@/components/chat-message";
 import { ChatInput } from "@/components/chat-input";
+import { ChatMessage } from "@/components/chat-message";
+import { ChatSidebar } from "@/components/chat-sidebar";
 import { EmptyState } from "@/components/empty-state";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { useChatStore } from "@/lib/chat-store";
-import { cn } from "@/lib/utils";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useEffect, useRef, useState } from "react";
 
 const page = () => {
   const {
@@ -23,11 +20,9 @@ const page = () => {
     reconnectSSE,
   } = useChatStore();
 
-  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [mounted, setMounted] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
-  const isMobile = useIsMobile();
 
   // Handle hydration and reconnection
   useEffect(() => {
@@ -42,11 +37,6 @@ const page = () => {
       });
     });
   }, []);
-
-  // Auto-close sidebar on mobile
-  useEffect(() => {
-    if (isMobile) setSidebarOpen(false);
-  }, [isMobile]);
 
   // Scroll to bottom on new messages
   useEffect(() => {
@@ -64,73 +54,50 @@ const page = () => {
   if (!mounted) return null;
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-background">
-      {/* Sidebar */}
-      <div
-        className={cn(
-          "shrink-0 transition-all duration-300 overflow-hidden",
-          sidebarOpen ? "w-64" : "w-0",
-          isMobile && sidebarOpen && "absolute inset-y-0 left-0 z-50 w-64",
-        )}
-      >
-        <ChatSidebar
-          conversations={conversations}
-          activeId={activeConversationId}
-          onSelect={(id) => {
-            setActiveConversationId(id);
-            if (isMobile) setSidebarOpen(false);
-          }}
-          onCreate={() => {
-            createConversation();
-            if (isMobile) setSidebarOpen(false);
-          }}
-          onDelete={deleteConversation}
-        />
-      </div>
+    <SidebarProvider>
+      <ChatSidebar
+        conversations={conversations}
+        activeId={activeConversationId}
+        onConversationSelect={(id) => {
+          setActiveConversationId(id);
+        }}
+        onCreate={() => {
+          createConversation();
+        }}
+        onDelete={deleteConversation}
+      />
 
-      {/* Overlay for mobile sidebar */}
-      {isMobile && sidebarOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/50"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* Main Chat */}
-      <div className="flex flex-1 flex-col min-w-0">
+      <SidebarInset>
         {/* Top Bar */}
-        <header className="flex items-center gap-3 border-b border-border px-4 h-13 shrink-0">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="h-8 w-8 text-muted-foreground hover:text-foreground"
-          >
-            <Menu className="h-4 w-4" />
-          </Button>
-          <span className="text-sm font-medium text-muted-foreground truncate">
-            {activeConversation?.title ?? "New chat"}
-          </span>
+        <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
+           <SidebarTrigger className="-ml-1" />
+           <div className="flex-1">
+              <span className="text-sm font-medium text-muted-foreground truncate">
+                {activeConversation?.title ?? "New chat"}
+              </span>
+           </div>
         </header>
 
-        {/* Messages or Empty State */}
-        {messages.length === 0 ? (
-          <EmptyState onSuggestionClick={handleSend} />
-        ) : (
-          <ScrollArea className="flex-1">
-            <div className="divide-y divide-border/30">
-              {messages.map((msg: any) => (
-                <ChatMessage key={msg.id} message={msg} />
-              ))}
-            </div>
-            <div ref={bottomRef} />
-          </ScrollArea>
-        )}
+        <div className="flex flex-1 flex-col overflow-hidden">
+          {/* Messages or Empty State */}
+          {messages.length === 0 ? (
+            <EmptyState onSuggestionClick={handleSend} />
+          ) : (
+            <ScrollArea className="flex-1">
+              <div className="flex flex-col">
+                {messages.map((msg: any) => (
+                  <ChatMessage key={msg.id} message={msg} />
+                ))}
+              </div>
+              <div ref={bottomRef} />
+            </ScrollArea>
+          )}
 
-        {/* Input */}
-        <ChatInput onSend={handleSend} disabled={isSending} />
-      </div>
-    </div>
+          {/* Input */}
+          <ChatInput onSend={handleSend} disabled={isSending} />
+        </div>
+      </SidebarInset>
+    </SidebarProvider>
   );
 };
 

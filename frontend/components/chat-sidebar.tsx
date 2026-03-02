@@ -1,13 +1,28 @@
-import { Plus, MessageSquare, Trash2, Sparkles } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { cn } from "@/lib/utils";
-import type { Conversation } from "@/lib/chat-store";
+"use client"
 
-interface ChatSidebarProps {
+import { GalleryVerticalEnd, MessageSquare, Plus, Trash2 } from "lucide-react"
+import * as React from "react"
+
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupAction,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuAction,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarRail
+} from "@/components/ui/sidebar"
+import type { Conversation } from "@/lib/chat-store"
+
+interface ChatSidebarProps extends React.ComponentProps<typeof Sidebar> {
   conversations: Conversation[];
   activeId: string | null;
-  onSelect: (id: string) => void;
+  onConversationSelect: (id: string) => void;
   onCreate: () => void;
   onDelete: (id: string) => void;
 }
@@ -15,59 +30,72 @@ interface ChatSidebarProps {
 export function ChatSidebar({
   conversations,
   activeId,
-  onSelect,
+  onConversationSelect,
   onCreate,
   onDelete,
+  ...props
 }: ChatSidebarProps) {
   return (
-    <div className="flex h-full w-64 flex-col bg-sidebar border-r border-sidebar-border">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4">
-        <div className="flex items-center gap-2">
-          <Sparkles className="h-5 w-5 text-primary" />
-          <span className="font-semibold text-sidebar-accent-foreground tracking-tight">
-            NovaMind
-          </span>
-        </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onCreate}
-          className="h-8 w-8 text-muted-foreground hover:text-foreground"
-        >
-          <Plus className="h-4 w-4" />
-        </Button>
-      </div>
-
-      {/* Conversation List */}
-      <ScrollArea className="flex-1 px-2">
-        <div className="space-y-1 pb-4">
-          {conversations.map((conv) => (
-            <div
-              key={conv.id}
-              className={cn(
-                "group flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm cursor-pointer transition-colors",
-                activeId === conv.id
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                  : "text-sidebar-foreground hover:bg-sidebar-accent/50",
-              )}
-              onClick={() => onSelect(conv.id)}
+    <Sidebar collapsible="icon" {...props}>
+      <SidebarHeader>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              size="lg"
+              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
-              <MessageSquare className="h-4 w-4 shrink-0 opacity-60" />
-              <span className="truncate flex-1">{conv.title}</span>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete(conv.id);
-                }}
-                className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          ))}
-        </div>
-      </ScrollArea>
-    </div>
-  );
+              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                <GalleryVerticalEnd className="size-4" />
+              </div>
+              <div className="grid flex-1 text-left text-sm leading-tight">
+                <span className="truncate font-semibold">NovaMind</span>
+                <span className="truncate text-xs text-muted-foreground">Video AI Engine</span>
+              </div>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarHeader>
+      <SidebarContent>
+        <SidebarGroup>
+          <div className="flex items-center justify-between px-2 mb-2">
+            <SidebarGroupLabel>Conversations</SidebarGroupLabel>
+            <SidebarGroupAction onClick={onCreate} title="New Chat">
+              <Plus className="size-4" />
+            </SidebarGroupAction>
+          </div>
+          <SidebarMenu>
+            {conversations.map((conv) => (
+              <SidebarMenuItem key={conv.id}>
+                <SidebarMenuButton
+                  isActive={activeId === conv.id}
+                  onClick={() => onConversationSelect(conv.id)}
+                  tooltip={conv.title}
+                >
+                  <MessageSquare className="size-4 shrink-0" />
+                  <span className="truncate">{conv.title}</span>
+                </SidebarMenuButton>
+                <SidebarMenuAction
+                  className="peer-data-[active=true]:text-sidebar-accent-foreground"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(conv.id);
+                  }}
+                >
+                  <Trash2 className="size-4" />
+                </SidebarMenuAction>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </SidebarGroup>
+      </SidebarContent>
+      <SidebarFooter>
+         <div className="p-2">
+            <p className="text-[10px] text-muted-foreground text-center uppercase tracking-widest font-medium opacity-50">
+                NovaMind v1.0
+            </p>
+         </div>
+      </SidebarFooter>
+      <SidebarRail />
+    </Sidebar>
+  )
 }
