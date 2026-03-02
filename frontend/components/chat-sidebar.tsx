@@ -68,13 +68,6 @@ export function ChatSidebar({
           ))}
         </div>
       </ScrollArea>
-
-      {/* Footer */}
-      <div className="border-t border-sidebar-border p-4">
-        <p className="text-xs text-muted-foreground text-center">
-          Built with Lovable
-        </p>
-      </div>
     </div>
   );
 }
