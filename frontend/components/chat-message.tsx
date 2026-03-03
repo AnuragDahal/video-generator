@@ -62,14 +62,54 @@ export const ChatMessage = memo(function ChatMessage({ message }: ChatMessagePro
 
                 {isAssistant && (
                     <div className="mt-4 space-y-4">
-                        {/* Progress Bar for Active Tasks */}
-                        {isProcessing && (
-                            <div className="space-y-2 w-full min-w-[200px]">
-                                <div className="flex justify-between text-[10px] font-semibold text-muted-foreground">
-                                    <span>Pipeline Progress</span>
-                                    <span>{message.progress || 0}%</span>
-                                </div>
-                                <Progress value={message.progress || 0} className="h-1 bg-secondary" />
+                        {/* Progress and Logs for Active/Completed Tasks */}
+                        {(isProcessing || (isCompleted && message.logs && message.logs.length > 0)) && (
+                            <div className="space-y-4 w-full min-w-[280px] max-w-md">
+                                {/* Thinking/Log Section */}
+                                {message.logs && message.logs.length > 0 && (
+                                    <div className="rounded-xl bg-background/40 border border-border/50 overflow-hidden">
+                                        <div className="px-3 py-2 border-b border-border/30 bg-secondary/20 flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <div className="flex space-x-1">
+                                                    <div className="h-1.5 w-1.5 rounded-full bg-primary/40 animate-pulse" />
+                                                    <div className="h-1.5 w-1.5 rounded-full bg-primary/60 animate-pulse delay-75" />
+                                                    <div className="h-1.5 w-1.5 rounded-full bg-primary/80 animate-pulse delay-150" />
+                                                </div>
+                                                <span className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground/80">
+                                                    Generation Process
+                                                </span>
+                                            </div>
+                                            {isProcessing && <Loader2 className="h-3 w-3 animate-spin text-primary/70" />}
+                                        </div>
+                                        <div className="p-3 max-h-[160px] overflow-y-auto scrollbar-thin scrollbar-thumb-primary/10">
+                                            <div className="space-y-1.5">
+                                                {message.logs.map((log, i) => (
+                                                    <div 
+                                                        key={i} 
+                                                        className={cn(
+                                                            "flex items-start gap-2 text-[11px] font-medium leading-relaxed transition-opacity duration-300",
+                                                            i === message.logs!.length - 1 ? "text-primary opacity-100" : "text-muted-foreground opacity-70"
+                                                        )}
+                                                    >
+                                                        <span className="mt-1 flex h-1.5 w-1.5 shrink-0 rounded-full bg-current opacity-40" />
+                                                        <span>{log}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Progress Bar */}
+                                {isProcessing && (
+                                    <div className="space-y-2">
+                                        <div className="flex justify-between text-[10px] font-semibold text-muted-foreground">
+                                            <span>Overall Progress</span>
+                                            <span>{message.progress || 0}%</span>
+                                        </div>
+                                        <Progress value={message.progress || 0} className="h-1 bg-secondary shadow-inner" />
+                                    </div>
+                                )}
                             </div>
                         )}
 
