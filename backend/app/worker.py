@@ -29,7 +29,14 @@ async def update_task_progress(task_id: str, status: str, progress: int, message
 
 async def run_video_pipeline(task_id: str, prompt: str):
     try:
-        await update_task_progress(task_id, "processing", 10, "Generating script...")
+        current_progress = 0
+        
+        async def log_step(message: str, progress_inc: int = 0):
+            nonlocal current_progress
+            current_progress = min(99, current_progress + progress_inc)
+            await update_task_progress(task_id, "processing", current_progress, message)
+
+        await log_step("Generating script...", 10)
         
         # 1. Script
         script_data = await script_service.generate_script(prompt)
@@ -37,7 +44,8 @@ async def run_video_pipeline(task_id: str, prompt: str):
             await update_task_progress(task_id, "failed", 0, f"Script Error: {script_data['error']}")
             return
 
-        await update_task_progress(task_id, "processing", 20, "Generating voiceover...", {"title": script_data.get("title")})
+        await log_step(f"Script ready: {script_data.get('title', 'Video')}", 5)
+        await log_step("Generating voiceover...", 10)
 
         # 2. Voice
         audio_filename = f"{task_id}_audio.mp3"
@@ -47,18 +55,28 @@ async def run_video_pipeline(task_id: str, prompt: str):
             await update_task_progress(task_id, "failed", 0, f"Voice Error: {audio_path}")
             return
         
-        await update_task_progress(task_id, "processing", 40, "Fetching visual assets...")
+        await log_step("Voiceover generated.", 5)
+        await log_step("Fetching visual assets...", 5)
         
         # 3. Visuals (Video Clips)
-        scenes_with_visuals = await visual_service.fetch_video_clips_for_scenes(script_data["scenes"])
+        scenes_with_visuals = await visual_service.fetch_video_clips_for_scenes(
+            script_data["scenes"], 
+            log_callback=lambda msg: log_step(msg, 2)
+        )
         
-        await update_task_progress(task_id, "processing", 60, "Assembling video (rendering)...")
+        await log_step("Visual assets ready.", 5)
 
         # 4. Smart Assembly
         output_file = f"{task_id}_final.mp4"
-        local_video_path, used_visual_paths = await engine_service.assemble_video(audio_path, scenes_with_visuals, output_file)
+        local_video_path, used_visual_paths = await engine_service.assemble_video(
+            audio_path, 
+            scenes_with_visuals, 
+            output_file,
+            log_callback=lambda msg: log_step(msg, 2)
+        )
         
-        await update_task_progress(task_id, "processing", 80, "Optimizing and uploading...")
+        await log_step("Video rendered.", 10)
+        await log_step("Extracting thumbnail...", 5)
 
         # 5. Extract/Search Thumbnail
         thumbnail_filename = f"{task_id}_thumb.jpg"
@@ -66,7 +84,10 @@ async def run_video_pipeline(task_id: str, prompt: str):
         local_thumb_path = None
         
         if thumb_keywords:
-            local_thumb_path = await visual_service.fetch_thumbnail_image(thumb_keywords)
+            local_thumb_path = await visual_service.fetch_thumbnail_image(
+                thumb_keywords,
+                log_callback=lambda msg: log_step(msg, 1)
+            )
         
         if not local_thumb_path:
             local_thumb_path = await engine_service.extract_thumbnail(local_video_path, thumbnail_filename)
@@ -75,9 +96,11 @@ async def run_video_pipeline(task_id: str, prompt: str):
             used_visual_paths.append(local_thumb_path)
 
         # 6. Cleanup unused visuals
+        await log_step("Cleaning up temporary files...", 2)
         await visual_service.cleanup_unused_visuals(used_visual_paths)
         
         # 7. Upload to Cloud
+        await log_step("Uploading video...", 5)
         cloud_url = await storage_service.upload_video(local_video_path)
         cloud_thumb_url = None
         if local_thumb_path:
