@@ -12,6 +12,7 @@ export interface Message {
   videoUrl?: string;
   thumbnailUrl?: string;
   timestamp: string; // Store as string for JSON serialization
+  logs?: string[];
 }
 
 export interface Conversation {
@@ -127,6 +128,7 @@ export const useChatStore = create<ChatState>()(
           status: "pending",
           progress: 0,
           timestamp: new Date().toISOString(),
+          logs: ["Starting video generation..."],
         };
 
         // Add assistant placeholder
@@ -159,12 +161,22 @@ export const useChatStore = create<ChatState>()(
         eventSource.onmessage = (event) => {
           try {
             const data = JSON.parse(event.data);
+            const state = get();
+            const activeConv = state.conversations.find(c => c.id === convId);
+            const message = activeConv?.messages.find(m => m.id === messageId);
+            
+            let newLogs = message?.logs || [];
+            if (data.message && !newLogs.includes(data.message)) {
+              newLogs = [...newLogs, data.message];
+            }
+
             get().updateMessage(convId, messageId, {
               content: data.message || "Generating...",
               status: data.status,
               progress: data.progress,
               videoUrl: data.data?.video_url,
               thumbnailUrl: data.data?.thumbnail_url,
+              logs: newLogs,
             });
 
             if (data.status === "completed" || data.status === "failed") {
