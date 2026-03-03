@@ -10,7 +10,7 @@ class EngineService:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.cpu_count = multiprocessing.cpu_count()
 
-    async def assemble_video(self, audio_path: str, scenes: list[dict], output_filename: str) -> str:
+    async def assemble_video(self, audio_path: str, scenes: list[dict], output_filename: str, log_callback=None) -> str:
         """
         Assembles video by syncing images to the duration of their respective narration parts.
         """
@@ -20,7 +20,10 @@ class EngineService:
         if not os.path.exists(audio_path):
             raise FileNotFoundError(f"Audio file not found: {audio_path}")
 
-        print(f"🎬 Smart-Assembling video: {output_filename}...")
+        msg = f"🎬 Assembling video: {output_filename}"
+        if log_callback:
+            await log_callback(msg)
+        print(msg)
         
         try:
             # 1. Load Audio and get total duration
@@ -38,6 +41,11 @@ class EngineService:
             
             # 3. Create clips for each scene
             for i, scene in enumerate(scenes):
+                msg = f"  🎞️ Processing scene {i+1}/{len(scenes)}..."
+                if log_callback:
+                    await log_callback(msg)
+                print(msg)
+
                 narration_text = scene.get("narration_part", "")
                 
                 # Check for video clips first, then fallback to images
@@ -103,6 +111,8 @@ class EngineService:
             # 4. Concatenate and Finish
             # 'chain' is MUCH more memory efficient than 'compose'
             # It works here because we've normalized all clips to 1280x720 above
+            if log_callback:
+                await log_callback("  ⚡ Finalizing render...")
             final_video = concatenate_videoclips(clips, method="chain")
             final_video = final_video.with_audio(audio_clip)
             

@@ -16,18 +16,21 @@ class VisualService:
     # Scene-level orchestration
     # -------------------------------------------------------------------------
 
-    async def fetch_video_clips_for_scenes(self, scenes: List[Dict]) -> List[Dict]:
+    async def fetch_video_clips_for_scenes(self, scenes: List[Dict], log_callback=None) -> List[Dict]:
         """
         Downloads a pool of best-match video clips per scene using all keywords.
         Attaches a list of local paths to each scene under 'video_paths'.
         """
         for i, scene in enumerate(scenes):
             keywords = scene.get("visual_keywords", [])
-            print(f"🎬  Scene {i+1}: searching video clips with {len(keywords)} keyword(s)...")
-            clips = await self._fetch_pool_of_videos(keywords)
+            msg = f"🎬 Scene {i+1}/{len(scenes)}: searching video clips..."
+            if log_callback:
+                await log_callback(msg)
+            print(msg)
+            clips = await self._fetch_pool_of_videos(keywords, log_callback=log_callback)
             scene["video_paths"] = clips
             if not clips:
-                print(f"  ⚠️  Scene {i+1}: no video clips found for any keyword.")
+                print(f"  ⚠️  Scene {i+1}: no video clips found.")
             else:
                 print(f"  ✅ Scene {i+1}: found {len(clips)} clip(s).")
         return scenes
@@ -37,7 +40,7 @@ class VisualService:
     # -------------------------------------------------------------------------
 
 
-    async def _fetch_pool_of_videos(self, keywords: List[str], max_clips: int = 3) -> List[str]:
+    async def _fetch_pool_of_videos(self, keywords: List[str], max_clips: int = 3, log_callback=None) -> List[str]:
         """
         Searches across all keywords to build a variety of clips for a scene.
         Returns a list of local paths.
@@ -77,11 +80,17 @@ class VisualService:
                         downloaded_ids.add(video_id)
 
                         if local_path.exists():
-                            print(f"  ✅ Cache hit for clip: '{keyword}'")
+                            msg = f"  ✅ Cache hit: '{keyword}'"
+                            if log_callback:
+                                await log_callback(msg)
+                            print(msg)
                             clips_found.append(str(local_path))
                             break # Move to next keyword
 
-                        print(f"  ⬇️  Downloading clip for: '{keyword}'")
+                        msg = f"  ⬇️ Downloading clip: '{keyword}'"
+                        if log_callback:
+                                await log_callback(msg)
+                        print(msg)
                         vid_response = await client.get(video_file["link"])
                         vid_response.raise_for_status()
                         local_path.write_bytes(vid_response.content)
@@ -93,7 +102,7 @@ class VisualService:
 
         return clips_found
 
-    async def fetch_thumbnail_image(self, keywords: List[str]) -> Optional[str]:
+    async def fetch_thumbnail_image(self, keywords: List[str], log_callback=None) -> Optional[str]:
         """
         Searches for a high-quality image to use as a thumbnail based on keywords.
         Returns the local path to the downloaded image.
@@ -102,7 +111,10 @@ class VisualService:
         async with httpx.AsyncClient(timeout=30.0) as client:
             for keyword in keywords:
                 try:
-                    print(f"🖼️  Searching thumbnail image for: '{keyword}'")
+                    msg = f"🖼️ Searching thumbnail: '{keyword}'"
+                    if log_callback:
+                        await log_callback(msg)
+                    print(msg)
                     response = await client.get(
                         f"{self.base_url}/search",
                         headers=headers,
@@ -127,6 +139,8 @@ class VisualService:
                     if local_path.exists():
                         return str(local_path)
 
+                    if log_callback:
+                        await log_callback("  ⬇️ Downloading thumbnail...")
                     print(f"  ⬇️  Downloading thumbnail image...")
                     img_response = await client.get(image_url)
                     img_response.raise_for_status()
