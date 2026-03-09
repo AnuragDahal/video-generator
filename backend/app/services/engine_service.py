@@ -1,5 +1,6 @@
 import os
 import multiprocessing
+import gc
 from pathlib import Path
 from moviepy import ImageClip, AudioFileClip, VideoFileClip, concatenate_videoclips
 from app.core.config import settings
@@ -67,7 +68,7 @@ class EngineService:
                         if not os.path.exists(vid_path):
                             continue
                         
-                        clip = VideoFileClip(vid_path)
+                        clip = VideoFileClip(vid_path, audio=False)
                         used_visual_paths.add(vid_path)
                         
                         # Trim video to match required duration
@@ -108,18 +109,21 @@ class EngineService:
                 audio_clip.close()
                 raise ValueError("No valid clips created. Check if visuals were downloaded.")
 
-            # 4. Concatenate and Finish
-            # 'chain' is MUCH more memory efficient than 'compose'
-            # It works here because we've normalized all clips to 1280x720 above
+            # Force garbage collection before the heavy render step
+            gc.collect()
+
             if log_callback:
                 await log_callback("  ⚡ Finalizing render...")
+            
+            # 'chain' is MUCH more memory efficient than 'compose'
+            # Method 'chain' is default for concatenate_videoclips in many cases but good to be explicit
             final_video = concatenate_videoclips(clips, method="chain")
             final_video = final_video.with_audio(audio_clip)
             
             output_path = self.output_dir / output_filename
             
-            # Limit threads to 2 to prevent memory spikes in parallel encoding
-            render_threads = min(2, self.cpu_count)
+            # Limit threads even further if needed. 1 is safest for memory.
+            render_threads = 1 
             
             final_video.write_videofile(
                 str(output_path),
