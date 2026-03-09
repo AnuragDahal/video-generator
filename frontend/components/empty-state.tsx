@@ -2,10 +2,10 @@ import { Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 
 const suggestions = [
-  "Explain quantum computing in simple terms",
-  "Help me write a React custom hook",
-  "What are the best practices for TypeScript?",
-  "Create a Python script to analyze data",
+  "Create a historical documentary about the library of Alexandria",
+  "Generate a high-energy workout intro for a fitness channel",
+  "Make a peaceful meditation video with nature scenery",
+  "Design a cinematic trailer for a sci-fi cyberpunk story",
 ];
 
 interface EmptyStateProps {
@@ -26,10 +26,10 @@ export function EmptyState({ onSuggestionClick }: EmptyStateProps) {
         </div>
         <div className="text-center">
           <h1 className="text-2xl font-semibold text-foreground tracking-tight">
-            How can I help you today?
+            What video shall we create today?
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Ask me anything — I'm here to assist.
+            Describe your vision, and I'll generate the script, visuals, and voiceover.
           </p>
         </div>
 
